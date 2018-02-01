@@ -53,7 +53,7 @@ class LambdaWhisperer:
             json.dump(url_text, open('./latest.json', 'w'))
             clean = url_text.values()
             response = json.loads(
-                requests.put(nlp_api, data=unidecode(' ||~~|| '.join(url_text.values()))).text)
+                requests.post(nlp_api, data=unidecode(' ||~~|| '.join(url_text.values()))).text)
         else:
             json.dump(' ||~~|| '.join(url_text.values()), open('./latest.json', 'w'))
             print('saved results')
