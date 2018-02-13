@@ -3,23 +3,26 @@ This module calls the neural network on new data to make predictions.
 It resides on AWS Lambda.
 
 """
+import hashlib
+import json
 import os
 import pickle
+import warnings
+import time
 
 import numpy as np
+import tldextract
 from tensorflow import keras
+from unidecode import unidecode
 
 from add_dict import AddDict
-from unidecode import unidecode
-import pickle, json
-Text = keras.preprocessing.text
 
+Text = keras.preprocessing.text
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
-def preprocess_articles(article_list):
+def preprocess_articles(article):
 
     def clean(self, seq):
         if len(seq):
@@ -30,21 +33,20 @@ def preprocess_articles(article_list):
 
     def vectorize(text):
         lookup = json.load(open('lookup234.json'))
-        for entry in text:
-            entry = keras.preprocessing.text.text_to_word_sequence(entry)
-            yield finalize([lookup[word] for word in entry if word in lookup])
+
+        entry = keras.preprocessing.text.text_to_word_sequence(text)
+
+        yield finalize([lookup[word] for word in entry if word in lookup])
 
     def finalize(entry):
-        v_len = 1000
+        v_len = 2000
 
         if len(entry) >= v_len:
             print(len(entry))
-
             return np.array(entry[-v_len:]).reshape(1, -1)
-
         return np.array([0 for _ in range(v_len - len(entry))] + entry).reshape(1, -1)
 
-    return list(vectorize(article_list))
+    return list(vectorize(article))
 
 
 labels = [
@@ -53,39 +55,40 @@ labels = [
     'very high'
 ]
 
-model = keras.models.load_model('CNN20k234.h5')
+model = keras.models.load_model('tester.h5')
 
 
 def predict(article):
     preds = model.predict(article)
-
     label_dict = {i: k for i, k in enumerate(labels)}
 
     pred_dict = {label_dict[i]: round(float(p), 6) for i, p in enumerate([x for x in preds.flatten()])}
     return pred_dict
 
 
-def orchestrate(articles_concat):
-
-    articles_clean = preprocess_articles(articles_concat.split('||~~||'))
-
-    return [predict(chunk) for chunk in articles_clean]
+def _alphanum(text):
+    return ''.join([_ for _ in text if _.isalnum()])
 
 
-'''
-    # Add results
-    results = AddDict()
-    for r in [predict(chunk) for chunk in articles_clean]:
-        results += r
+def get_TLD(url):
+    return ''.join([char for char in '.'.join(tldextract.extract(url)[-2:]) if char.isalnum()])
 
-    # Zero results
 
-    # zero = predict(preprocess_articles(['the']))
-    # for k, v in results.items():
-    #     results[k] = (v / len(results)) - zero[k]
+def orchestrate(url_article: dict):
+    timestamp = time.strftime("%x")
+
+    results = []
+    for url, article in url_article.items():
+        results.append({
+            'url': hashlib.md5(url.encode('utf-8')).hexdigest(),
+            'score': predict(preprocess_articles(article)),
+            'timestamp': timestamp,
+        })
     return results
-'''
+
 
 if __name__ == '__main__':
-    from pprint import pprint
-    pprint(orchestrate('flouride alien dna  ||~~|| lizard people illuminati'))
+
+    # entries = orchestrate(json.load(open('../../web/latest.json')))
+    # print(entries)
+    ...
