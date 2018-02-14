@@ -20,6 +20,7 @@ from add_dict import AddDict
 Text = keras.preprocessing.text
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+model = keras.models.load_model('tester.h5')
 
 
 def preprocess_articles(article):
@@ -55,8 +56,6 @@ labels = [
     'very high'
 ]
 
-model = keras.models.load_model('tester.h5')
-
 
 def predict(article):
     preds = model.predict(article)
@@ -75,6 +74,17 @@ def get_TLD(url):
 
 
 def orchestrate(url_article: dict):
+
+    zeroes = predict(preprocess_articles('the ' * 1000))
+
+    def zero(scores: dict):
+        res = {}
+        for k, v in zeroes.items():
+
+            res[k] = scores[k] - v
+
+        return res
+
     timestamp = time.strftime("%x")
 
     results = []
@@ -89,6 +99,7 @@ def orchestrate(url_article: dict):
 
 if __name__ == '__main__':
 
-    # entries = orchestrate(json.load(open('../../web/latest.json')))
-    # print(entries)
+    entries = orchestrate(json.load(open('../../web/latest.json')))
+    from pprint import pprint
+    pprint(entries)
     ...
